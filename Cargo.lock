@@ -3036,8 +3036,6 @@ version = "0.2.1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
- "bitvec",
- "fastmurmur3",
  "light-bounded-vec",
  "light-heap",
  "light-utils",
