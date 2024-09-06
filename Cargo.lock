@@ -3670,7 +3670,6 @@ dependencies = [
 name = "light-sdk"
 version = "0.5.0"
 dependencies = [
- "account-compression",
  "aligned-sized",
  "anchor-lang",
  "borsh 0.10.3",
@@ -3680,12 +3679,10 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
- "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
  "light-prover-client",
- "light-system-program",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.6",

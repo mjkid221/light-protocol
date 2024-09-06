@@ -139,7 +139,6 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
                 let address_seed = ::light_sdk::address::derive_address_seed(
                     &#seeds,
                     &crate::ID,
-                    &unpacked_address_merkle_context,
                 );
                 #field_ident.set_address_seed(address_seed);
             });

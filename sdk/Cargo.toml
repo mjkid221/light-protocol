@@ -11,15 +11,7 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-cpi = ["no-entrypoint"]
-custom-heap = ["light-heap"]
-mem-profiling = []
-default = ["custom-heap"]
-test-sbf = []
-bench-sbf = []
+default = []
 
 [dependencies]
 aligned-sized = { version = "0.5.0", path = "../macros/aligned-sized" }
@@ -27,9 +19,6 @@ light-macros = { version = "0.7.0", path = "../macros/light" }
 anchor-lang = { workspace = true }
 bytemuck = "1.17"
 light-hasher = { version = "0.5.0", path = "../merkle-tree/hasher" }
-light-heap = { version = "0.5.0", path = "../heap", optional = true }
-account-compression = { version = "0.7.0", path = "../programs/account-compression", features = ["cpi"] }
-light-system-program = { version = "0.7.0", path = "../programs/system", features = ["cpi"] }
 light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.5.0" }
 light-utils = { version = "0.5.0", path = "../utils" }
 groth16-solana = "0.0.3"
