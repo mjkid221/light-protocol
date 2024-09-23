@@ -1,3 +1,4 @@
+use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
@@ -28,7 +29,7 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
