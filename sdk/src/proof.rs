@@ -36,9 +36,6 @@ pub struct CompressedProof {
     pub c: [u8; 32],
 }
 
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for CompressedProof {}
-
 #[derive(Debug)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
