@@ -1,5 +1,5 @@
-use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 use solana_program::pubkey::Pubkey;
@@ -42,6 +42,3 @@ pub struct ProofRpcResult {
     pub root_indices: Vec<u16>,
     pub address_root_indices: Vec<u16>,
 }
-
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for ProofRpcResult {}

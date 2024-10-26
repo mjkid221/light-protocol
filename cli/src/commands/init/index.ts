@@ -29,6 +29,7 @@ import {
   kebabCase,
   snakeCase,
 } from "case-anything";
+import { execSync } from "child_process";
 export default class InitCommand extends Command {
   static description = "Initialize a compressed account project.";
 
@@ -46,8 +47,6 @@ export default class InitCommand extends Command {
 
     this.log("Initializing project...");
     await initRepo(name, flags);
-
-    this.log("✅ Project initialized successfully");
   }
 }
 
@@ -59,11 +58,16 @@ export const initRepo = async (name: string, flags: any) => {
     localFilePath,
     dirPath,
   });
+
   const kebabCaseName = kebabCase(name);
   const snakeCaseName = snakeCase(name);
   const camelCaseName = upperCamelCase(name);
+
+  const command = localFilePath;
+  const env = { ...process.env };
+
   await executeCommand({
-    command: localFilePath,
+    command,
     args: [
       "generate",
       "--name",
@@ -108,7 +112,24 @@ export const initRepo = async (name: string, flags: any) => {
       `tokio-version=${TOKIO_VERSION}`,
     ],
     logFile: true,
+    env: env,
   });
+
+  console.log("✅ Project initialized successfully");
+
+  if (os.platform() === "darwin") {
+    console.log(`
+🧢 Important for macOS users 🧢
+===============================
+
+Run this command in your terminal before building your project:
+
+----------------------------------------------------------------------------------------------------
+echo 'export CPATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include:$CPATH"' >> ~/.zshrc && source ~/.zshrc
+----------------------------------------------------------------------------------------------------
+`);
+  }
+
   await sleep(1000);
 };
 

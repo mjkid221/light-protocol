@@ -69,6 +69,7 @@
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
 use light_compressed_token::token_data::AccountState;
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::create_finalize_registration_instruction;
 use light_registry::utils::get_protocol_config_pda_address;
@@ -135,6 +136,7 @@ use crate::indexer::TestIndexer;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
+use light_prover_client::gnark::helpers::ProverMode;
 
 pub struct User {
     pub keypair: Keypair,
@@ -206,8 +208,10 @@ pub async fn init_program_test_env(
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
-        KeypairActionConfig::all_default().inclusion(),
-        KeypairActionConfig::all_default().non_inclusion(),
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
 
@@ -602,11 +606,15 @@ where
                         self.registration_epoch
                     );
 
-                    let registered_epoch =
-                        Epoch::register(&mut self.rpc, &self.protocol_config, &forester.keypair)
-                            .await
-                            .unwrap()
-                            .unwrap();
+                    let registered_epoch = Epoch::register(
+                        &mut self.rpc,
+                        &self.protocol_config,
+                        &forester.keypair,
+                        &forester.keypair.pubkey(),
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap();
                     println!("registered_epoch {:?}", registered_epoch.phases);
                     forester.forester.registration = registered_epoch;
                     if forester.is_registered.is_none() {
@@ -660,7 +668,7 @@ where
                     .await;
                     forester
                         .forester
-                        .report_work(&mut self.rpc, &forester.keypair)
+                        .report_work(&mut self.rpc, &forester.keypair, &forester.keypair.pubkey())
                         .await
                         .unwrap();
                     println!("reported work");
@@ -731,6 +739,7 @@ where
                         .await
                         .unwrap();
                     let ix = create_finalize_registration_instruction(
+                        &forester.keypair.pubkey(),
                         &forester.keypair.pubkey(),
                         forester.forester.active.epoch,
                     );
@@ -2138,6 +2147,23 @@ pub struct KeypairActionConfig {
 }
 
 impl KeypairActionConfig {
+    pub fn prover_config(&self) -> ProverConfig {
+        let mut config = ProverConfig {
+            run_mode: None,
+            circuits: vec![],
+        };
+
+        if self.inclusion() {
+            config.circuits.push(ProofType::Inclusion);
+        }
+
+        if self.non_inclusion() {
+            config.circuits.push(ProofType::NonInclusion);
+        }
+
+        config
+    }
+
     pub fn inclusion(&self) -> bool {
         self.transfer_sol.is_some() || self.transfer_spl.is_some()
     }

@@ -8,7 +8,8 @@ edition = "2021"
 
 [features]
 gnark = ["tokio", "reqwest"]
-default = ["gnark"]
+default = ["gnark", "devenv"]
+devenv = []
 
 [dependencies]
 
@@ -16,6 +17,8 @@ default = ["gnark"]
 light-merkle-tree-reference = { path = "../../merkle-tree/reference", version = "1.1.0" }
 light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0" }
 light-indexed-merkle-tree = { path = "../../merkle-tree/indexed", version = "1.1.0" }
+light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", version = "1.1.0" }
+light-bounded-vec = { path = "../../merkle-tree/bounded-vec", version = "1.1.0" }
 light-utils = { path = "../../utils", version = "1.1.0" }
 # ark dependencies
 ark-serialize = "0.4.2"

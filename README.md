@@ -3,7 +3,7 @@
 # Light Protocol
 
 [![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
-[![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
+[![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-protocol/actions?query=workflow)
 
 **The ZK Compression Protocol for Solana**
 
@@ -70,6 +70,13 @@ There are three ways of setting up the development environment:
   unfortunately has performance problems on macOS.
 - [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
+- Windows is not supported.
+
+### Prerequisites:
+- Ubuntu, `sudo apt-get install lld clang`
+- Fedora, `sudo dnf install clang lld`
+- Arch, `sudo pacman -S lld clang`
+- Mac, `brew install llvm`
 
 ### devenv.sh
 
@@ -82,6 +89,13 @@ directory inside your repository clone).
 ```
 ./scripts/install.sh
 ```
+
+By default, this will install a subset of gnark keys with Merkle tree heights sufficient for running tests. If you need the full set of production keys, you can use the --full-keys flag:
+```
+./scripts/install.sh --full-keys
+```
+
+Note: The default subset of keys is adequate for most development and testing purposes. The full set of keys is larger and includes additional Merkle tree heights used in production environments.
 
 Then, activate the development environment:
 

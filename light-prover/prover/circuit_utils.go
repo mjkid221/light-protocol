@@ -1,13 +1,9 @@
 package prover
 
 import (
-	"fmt"
-	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
 	"math/big"
-	"os"
 
-	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -19,17 +15,25 @@ type Proof struct {
 	Proof groth16.Proof
 }
 
-type ProvingSystem struct {
-	InclusionTreeDepth                     uint32
+type ProvingSystemV1 struct {
+	InclusionTreeHeight                    uint32
 	InclusionNumberOfCompressedAccounts    uint32
-	NonInclusionTreeDepth                  uint32
+	NonInclusionTreeHeight                 uint32
 	NonInclusionNumberOfCompressedAccounts uint32
 	ProvingKey                             groth16.ProvingKey
 	VerifyingKey                           groth16.VerifyingKey
 	ConstraintSystem                       constraint.ConstraintSystem
 }
 
-// ProveParentHash gadget generates the ParentHash
+type ProvingSystemV2 struct {
+	CircuitType      CircuitType
+	TreeHeight       uint32
+	BatchSize        uint32
+	ProvingKey       groth16.ProvingKey
+	VerifyingKey     groth16.VerifyingKey
+	ConstraintSystem constraint.ConstraintSystem
+}
+
 type ProveParentHash struct {
 	Bit     frontend.Variable
 	Hash    frontend.Variable
@@ -51,17 +55,17 @@ type InclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:  gadget.Leaves[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:   gadget.Leaves[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -80,7 +84,7 @@ type NonInclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -94,10 +98,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
-			Hash:  currentHash[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:   currentHash[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -113,6 +117,24 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 	abstractor.Call(api, gadget.InclusionProof)
 	abstractor.Call(api, gadget.NonInclusionProof)
 	return nil
+}
+
+type VerifyProof struct {
+	Leaf  frontend.Variable
+	Path  []frontend.Variable
+	Proof []frontend.Variable
+}
+
+func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := gadget.Leaf
+	for i := 0; i < len(gadget.Path); i++ {
+		currentHash = abstractor.Call(api, ProveParentHash{
+			Bit:     gadget.Path[i],
+			Hash:    currentHash,
+			Sibling: gadget.Proof[i],
+		})
+	}
+	return currentHash
 }
 
 type LeafHashGadget struct {
@@ -150,77 +172,46 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 }
 
 type MerkleRootGadget struct {
-	Hash  frontend.Variable
-	Index frontend.Variable
-	Path  []frontend.Variable
-	Depth int
+	Hash   frontend.Variable
+	Index  frontend.Variable
+	Path   []frontend.Variable
+	Height int
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
-	currentPath := api.ToBinary(gadget.Index, gadget.Depth)
-	for i := 0; i < gadget.Depth; i++ {
+	currentPath := api.ToBinary(gadget.Index, gadget.Height)
+	for i := 0; i < gadget.Height; i++ {
 		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
 }
 
-// Trusted setup utility functions
-// Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L19
-func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
-	logging.Logger().Info().Msg("start reading proving key")
-	pk = groth16.NewProvingKey(ecc.BN254)
-	f, _ := os.Open(filepath)
-	_, err = pk.ReadFrom(f)
-	if err != nil {
-		return pk, fmt.Errorf("read file error")
-	}
-	err = f.Close()
-	if err != nil {
-		return nil, err
-	}
-	return pk, nil
+type MerkleRootUpdateGadget struct {
+	OldRoot     frontend.Variable
+	OldLeaf     frontend.Variable
+	NewLeaf     frontend.Variable
+	PathIndex   frontend.Variable
+	MerkleProof []frontend.Variable
+	Height      int
 }
 
-// Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L32
-func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err error) {
-	logging.Logger().Info().Msg("start reading verifying key")
-	verifyingKey = groth16.NewVerifyingKey(ecc.BN254)
-	f, _ := os.Open(filepath)
-	_, err = verifyingKey.ReadFrom(f)
-	if err != nil {
-		return verifyingKey, fmt.Errorf("read file error")
-	}
-	err = f.Close()
-	if err != nil {
-		return nil, err
-	}
+func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
+	// Verify the old root
+	currentRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.OldLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
+	api.AssertIsEqual(currentRoot, gadget.OldRoot)
 
-	return verifyingKey, nil
-}
+	// Calculate the new root
+	newRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.NewLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
 
-func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
-	var keys []string
-
-	if IsCircuitEnabled(circuitTypes, Inclusion) {
-		keys = append(keys, keysDir+"inclusion_26_1.key")
-		keys = append(keys, keysDir+"inclusion_26_2.key")
-		keys = append(keys, keysDir+"inclusion_26_3.key")
-		keys = append(keys, keysDir+"inclusion_26_4.key")
-		keys = append(keys, keysDir+"inclusion_26_8.key")
-	}
-	if IsCircuitEnabled(circuitTypes, NonInclusion) {
-		keys = append(keys, keysDir+"non-inclusion_26_1.key")
-		keys = append(keys, keysDir+"non-inclusion_26_2.key")
-	}
-	if IsCircuitEnabled(circuitTypes, Combined) {
-		keys = append(keys, keysDir+"combined_26_1_1.key")
-		keys = append(keys, keysDir+"combined_26_1_2.key")
-		keys = append(keys, keysDir+"combined_26_2_1.key")
-		keys = append(keys, keysDir+"combined_26_2_2.key")
-		keys = append(keys, keysDir+"combined_26_3_1.key")
-		keys = append(keys, keysDir+"combined_26_3_2.key")
-		keys = append(keys, keysDir+"combined_26_4_1.key")
-		keys = append(keys, keysDir+"combined_26_4_2.key")
-	}
-	return keys
+	return newRoot
 }
