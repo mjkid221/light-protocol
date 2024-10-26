@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
